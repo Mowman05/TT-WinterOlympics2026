@@ -1,0 +1,174 @@
+---
+title: "Winter Olympics 2026"
+author: Elijah Letson
+format:
+    html: 
+        embed-resources: true
+editor: visual
+---
+
+# Which sport disciplines have the most events scheduled?
+
+```{r echo=TRUE, include=FALSE}
+# Loading libraries in R
+library(dplyr)
+library(ggplot2)
+library(knitr)
+library(tibble)
+```
+
+```{r echo=TRUE, , include=FALSE}
+# Reading data set into R
+schedule <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/main/data/2026/2026-02-10/schedule.csv')
+```
+
+```{r echo=TRUE}
+schedule1 <- select(schedule, discipline_code,discipline_name, is_medal_event, is_training, event_description)
+
+schedule1_events <- schedule1 %>% filter(is_training == FALSE)
+
+
+num_events <- schedule1_events %>% count(discipline_name) %>% arrange(desc(n)) %>% slice(1:5)
+
+num_events_code <- schedule1_events %>% count(discipline_code) %>% arrange(desc(n)) %>% slice(1:5)
+
+num_events_renamed <- num_events %>% rename(Discipline = discipline_name, Number_of_Events = n)
+```
+
+The sport disciplines that have the most events scheduled are as follows:
+
+```{r}
+my_tibble <- as_tibble(num_events_renamed)
+kable(head(my_tibble))
+
+ggplot(num_events_code, aes(x=discipline_code, y=n)) + geom_col(fill="darkgreen") + labs( title = "Top Five Disciplines that Have the Most Events", x = "Venue", y = "Number of Events")
+```
+
+One can tell from the table that the discipline with the largest number of scheduled events is `{r} num_events_renamed[1,1]` ( `{r} num_events_code[1,1]` ) with `{r} num_events_renamed[1,2]`.
+
+# How are medal events distributed across the days of the Olympics?
+
+The distribution of medal events across the days of the Olympics are displayed below:
+
+```{r}
+# Creates a new data set
+schedule2 <- select(schedule, date, discipline_name, event_description, is_medal_event)
+
+# Filters the new data set to only include medal events
+schedule2_events <- schedule2 %>% filter(is_medal_event == TRUE)
+
+# Counts the number of medal events per day
+num_medal_events_per_day <- schedule2_events %>% count(date) 
+
+# Creates bar graph of distribution of medal events per day
+ggplot(num_medal_events_per_day, aes(x=date, y=n)) + geom_col(fill="darkgreen") + labs( title = "Number of Olympic Medal Events Per Day", x = "Date", y = "Number of Events")
+```
+
+Based on the graph one can see that February 11th is the day with the highest number of medal events and the next highest days are the 12th, 13th, and 14th.
+
+# What is the typical duration of different types of events?
+
+The typical duration of different types of events is displayed below:
+
+```{r echo=TRUE}
+schedule3 <- select(schedule, discipline_code, discipline_name, is_training, start_datetime_utc, end_datetime_utc)
+
+schedule3_events <- schedule3 %>% filter(is_training == FALSE)
+
+schedule3_events_up <- schedule3_events$end_datetime_utc - schedule3_events$start_datetime_utc
+
+schedule3_events$duration <- schedule3_events_up
+
+schedule3_events_ave_time <- schedule3_events %>% group_by(discipline_code) %>% summarise(average_time = mean(duration, na.rm = TRUE))
+
+ggplot(schedule3_events_ave_time, aes(x=discipline_code, y=average_time)) + geom_col(fill="darkgreen") + labs( title = "Average Event Length Per Discipline", x = "Discipline", y = "Average Event Length in Minutes")
+```
+
+The events that had the highest average length are curling with an average length of 160.32 minutes (CUR), figure skating with an average length of around 142.88 minutes (FSK), and ice hockey with an average length of 150.00 minutes (IHO).
+
+# Which venues host the most events?
+
+```{r echo=TRUE}
+schedule4 <- select(schedule, is_training, venue_code, venue_name)
+
+schedule4_events <- schedule4 %>% filter(is_training == FALSE)
+
+schedule4_num_events_venue <- schedule4_events %>% count(venue_name) %>% arrange(desc(n)) %>% slice(1:5)
+
+schedule4_num_events_venue_renamed <- schedule4_num_events_venue %>% rename(Venue = venue_name, Number_of_Events = n)
+
+schedule4_num_events_venue_code <- schedule4_events %>% count(venue_code) %>% arrange(desc(n)) %>% slice(1:5)
+```
+
+The venues that host the most events are as follows:
+
+```{r echo=TRUE}
+second_tibble <- as_tibble(schedule4_num_events_venue_renamed)
+kable(head(second_tibble))
+
+ggplot(schedule4_num_events_venue_code, aes(x=venue_code, y=n)) + geom_col(fill="darkgreen") + labs( title = "Top Five Venues that Host the Most Events", x = "Venue", y = "Number of Events")
+```
+
+Based on the table and bar chart above one can see that the venue that hosted the most events was the `{r} schedule4_num_events_venue_renamed[1,1]` ( `{r} schedule4_num_events_venue_code[1,1]` ) with `{r} schedule4_num_events_venue_renamed[1,2]` events. This lines up with the findings previously which showed that the discipline with the most events was curling and curling would have been held at this venue.
+
+# How does the schedule vary by day of the week?
+
+The schedule variance by day is displayed below:
+
+```{r echo=TRUE, include=FALSE}
+library(lubridate)
+schedule5 <- select(schedule, date, is_training, day_of_week)
+
+schedule5_events <- schedule5 %>% filter(is_training == FALSE)
+
+schedule5_events_2 <- schedule5_events
+
+start_date <- as.Date("2026-02-08")
+
+end_date <- as.Date("2026-02-14")
+
+correct_window <- schedule5_events_2 %>% filter(date>= start_date & date<= end_date)
+
+correct_window <- correct_window %>% mutate(correct_day_of_week = wday(date, label = TRUE, abbr = FALSE))
+
+correct_window 
+
+num_events_per_day <- correct_window %>% count(correct_day_of_week)
+```
+
+```{r}
+ggplot(num_events_per_day, aes(x=correct_day_of_week, y=n)) + geom_col(fill="darkgreen") + labs( title = "Number of Events Per Day of the Week", x = "", y = "")
+```
+
+The schedule of events, as shown above, is more heavily weighted on the weekend as compared to the weekdays. This makes sense because one may assume most people are off of work on the weekends and have more time to watch television, driving event organizers to plan more events on the weekend when more people may be watching.
+
+# What proportion of scheduled sessions are training versus competition?
+
+The proportion of scheduled sessions that are training versus competition is displayed below:
+
+```{r}
+schedule6 <- select(schedule, is_training)
+
+training_sessions <- schedule6 %>% filter(is_training == TRUE) %>% count(is_training)
+
+competition_sessions <- schedule6 %>% filter(is_training == FALSE) %>% count(is_training)
+
+total_sessions = schedule %>% count(is_training)
+
+total_sessions = sum(total_sessions$n[1], total_sessions$n[2])
+
+proportion_training <- (training_sessions$n / total_sessions)*100
+
+proportion_competition <- (competition_sessions$n / total_sessions)*100
+```
+
+```{r}
+column_a <- c("Training", "Competition")
+column_b <- c(proportion_training, proportion_competition)
+
+my_data_frame <- data.frame(type = column_a, percentage = column_b)
+
+ggplot(my_data_frame, aes(x=type, y=percentage)) + geom_col(fill="darkgreen") + labs( title = "Proportion of Scheduled Sessions that are Training Versus Competition (%)", x = "", y = "")
+```
+
+`{r} round(proportion_competition, digits = 2)`% of the scheduled sessions were competition sessions and `{r} round(proportion_training, digits = 2)`% were training sessions. This appears to make sense since the Olympics is a competition held for athletes to compete against one another and not simply train. The majority of their training should have already taken place to prepare for the Olympics, enabling them to now mostly compete.
